@@ -67,8 +67,13 @@ func main() {
 		Use:   "bytes",
 		Short: "Generates bytes encoded with base64",
 		Run: func(cmd *cobra.Command, args []string) {
-			b := make([]byte, 64)
-			_, err := rand.Read(b)
+			size, err := cmd.Flags().GetUint32("size")
+			if err != nil {
+				logError(err)
+			}
+
+			b := make([]byte, size)
+			_, err = rand.Read(b)
 			if err != nil {
 				logError(err)
 			}
@@ -76,6 +81,7 @@ func main() {
 			fmt.Println(encoded)
 		},
 	}
+	randomBytes.Flags().Uint32("size", 64, "specify bytes length")
 	randomGen.AddCommand(randomBytes)
 
 	//
