@@ -7,7 +7,8 @@
 dev rand uuid4 
 
 # generate random bytes encoded with base64
-dev rand bytes
+dev rand bytes           
+dev rand bytes --size 32 (default is 64)
 ```
 
 ## go
