@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -19,6 +21,33 @@ func main() {
 		Short: "dev is a collection of utilities that might come handy when developing a software",
 	}
 
+	// namespaces
+
+	randomGen := &cobra.Command{
+		Use:   "rand",
+		Short: "Random related generators",
+	}
+	rootCmd.AddCommand(randomGen)
+
+	golang := &cobra.Command{
+		Use:   "go",
+		Short: "Go language related generators",
+	}
+	rootCmd.AddCommand(golang)
+
+	// go namespace
+
+	golangMain := &cobra.Command{
+		Use:   "main",
+		Short: "Generate initial main()",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(golangMainTpl)
+		},
+	}
+	golang.AddCommand(golangMain)
+
+	// rand namespace
+
 	uuid4 := &cobra.Command{
 		Use:   "uuid4",
 		Short: "Generates UUID v4",
@@ -30,13 +59,37 @@ func main() {
 			}
 
 			fmt.Println(uuid.String())
-
 		},
 	}
-	rootCmd.AddCommand(uuid4)
+	randomGen.AddCommand(uuid4)
+
+	randomBytes := &cobra.Command{
+		Use:   "bytes",
+		Short: "Generates bytes encoded with base64",
+		Run: func(cmd *cobra.Command, args []string) {
+			b := make([]byte, 64)
+			_, err := rand.Read(b)
+			if err != nil {
+				logError(err)
+			}
+			encoded := base64.StdEncoding.EncodeToString(b)
+			fmt.Println(encoded)
+		},
+	}
+	randomGen.AddCommand(randomBytes)
+
+	//
 
 	if err := rootCmd.Execute(); err != nil {
 		logError(err)
 		os.Exit(1)
 	}
 }
+
+const golangMainTpl = `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello")
+}`
