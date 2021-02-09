@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -84,6 +86,64 @@ func main() {
 	randomBytes.Flags().Uint32("size", 64, "specify bytes length")
 	randomGen.AddCommand(randomBytes)
 
+	// ssh namespace
+	sshTools := &cobra.Command{
+		Use:   "ssh",
+		Short: "SSH tools",
+	}
+	rootCmd.AddCommand(sshTools)
+
+	sshKnownHosts := &cobra.Command{
+		Use:   "known-hosts",
+		Short: "known_hosts",
+	}
+	sshTools.AddCommand(sshKnownHosts)
+
+	sshKnownHostsList := &cobra.Command{
+		Use:   "diff",
+		Short: "Show diff between ~/.ssh/known_hosts and ~/.ssh/known_hosts.db",
+		Run: func(cmd *cobra.Command, args []string) {
+			trusted := sshKnownHostsRead(".db")
+			active := sshKnownHostsRead("")
+
+			// check diff
+			temp := make([]string, 0)
+			for _, a := range active {
+				found := false
+				for _, t := range trusted {
+					if t == a {
+						found = true
+						break
+					}
+				}
+				if !found {
+					temp = append(temp, a)
+				}
+			}
+
+			if len(temp) > 0 {
+				fmt.Print(ctc.ForegroundYellow, "New hosts (", len(temp), ")", ctc.Reset, "\n")
+				for _, s := range temp {
+					fmt.Println(s)
+				}
+			} else {
+				fmt.Print(ctc.ForegroundGreen, "No new hosts\n", ctc.Reset)
+			}
+		},
+	}
+	sshKnownHosts.AddCommand(sshKnownHostsList)
+
+	sshKnownHostsReset := &cobra.Command{
+		Use:   "reset",
+		Short: "Replace ~/.ssh/known_hosts with ~/.ssh/known_hosts.db",
+		Run: func(cmd *cobra.Command, args []string) {
+			trusted := sshKnownHostsRead(".db")
+			sshKnownHostsWrite("", trusted)
+			fmt.Printf("%s%d hosts written%s\n", ctc.ForegroundGreen, len(trusted), ctc.Reset)
+		},
+	}
+	sshKnownHosts.AddCommand(sshKnownHostsReset)
+
 	//
 
 	if err := rootCmd.Execute(); err != nil {
@@ -99,3 +159,32 @@ import "fmt"
 func main() {
 	fmt.Println("Hello")
 }`
+
+func sshKnownHostsRead(suffix string) []string {
+	res := make([]string, 0)
+	if f, err := os.Open(fmt.Sprint(os.Getenv("HOME"), "/.ssh/known_hosts", suffix)); err == nil {
+		defer f.Close()
+
+		b, err := ioutil.ReadAll(f)
+		if err == nil {
+			for _, s := range strings.Split(string(b), "\n") {
+				if strings.TrimSpace(s) != "" {
+					res = append(res, s)
+				}
+			}
+		}
+	}
+
+	return res
+}
+
+func sshKnownHostsWrite(suffix string, lines []string) {
+	if f, err := os.OpenFile(fmt.Sprint(os.Getenv("HOME"), "/.ssh/known_hosts", suffix), os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		defer f.Close()
+		f.Truncate(0)
+
+		for _, line := range lines {
+			fmt.Fprintln(f, line)
+		}
+	}
+}
